@@ -1,0 +1,43 @@
+# GitHub Actions: 自动更新股票数据并重新生成可视化面板
+# 需要在仓库 Settings > Secrets 中添加 TUSHARE_TOKEN
+
+name: Update Stock Data
+
+on:
+  schedule:
+    # 每天北京时间 16:30 (UTC 08:30) 执行，A股收盘后
+    - cron: '30 8 * * 1-5'
+  workflow_dispatch: # 支持手动触发
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install tushare pandas matplotlib
+
+      - name: Update stock data
+        env:
+          TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+        run: |
+          python scripts/update_data.py
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "auto: update stock data $(date -u +%Y-%m-%d)"
+          git push
